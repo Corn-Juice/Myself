@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Flow · 智能日程</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Noto+Sans+SC:wght@400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#09090B;--bg2:#111114;--bg3:#18181C;--bg4:#202025;--bg5:#28282F;
+  --line:#2C2C34;--line2:#38383F;
+  --t1:#EEEDF5;--t2:#8A8898;--t3:#4E4D5C;
+  --accent:#6C63FF;--a2:#9B95FF;--a3:rgba(108,99,255,.13);--a4:rgba(108,99,255,.26);
+  --green:#22C55E;--g2:rgba(34,197,94,.12);
+  --amber:#F59E0B;--am2:rgba(245,158,11,.12);
+  --red:#EF4444;--r2:rgba(239,68,68,.12);
+  --coral:#F97316;
+  --rr:12px;--rr2:18px;--rr3:26px;
+  --nav:62px;--safe:env(safe-area-inset-bottom,0px);
+  --f:'DM Sans',sans-serif;--fc:'Noto Sans SC',sans-serif;--fm:'DM Mono',monospace;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg)}
+body{font-family:var(--f);font-size:15px;line-height:1.5;color:var(--t1)}
+
+/* Shell */
+#app{display:flex;flex-direction:column;height:100vh;max-width:500px;margin:0 auto;background:var(--bg);overflow:hidden;border-left:1px solid var(--line);border-right:1px solid var(--line)}
+#screens{flex:1;overflow:hidden;position:relative}
+.screen{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(var(--nav) + var(--safe) + 20px);opacity:0;pointer-events:none;transform:translateY(8px);transition:opacity .2s,transform .2s}
+.screen.on{opacity:1;pointer-events:all;transform:none}
+.screen::-webkit-scrollbar{display:none}
+
+/* Nav */
+#nav{height:var(--nav);padding-bottom:var(--safe);background:rgba(9,9,11,.93);backdrop-filter:blur(20px);border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-around;z-index:50;flex-shrink:0}
+.nb{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 14px;border:none;background:none;color:var(--t3);cursor:pointer;transition:color .18s;position:relative;min-width:52px}
+.nb.on{color:var(--a2)}
+.nb svg{width:21px;height:21px;stroke-width:1.7}
+.nb span{font-size:10px;font-weight:500;letter-spacing:.04em}
+.nb-mid{margin-top:-18px}
+.nb-plus{width:50px;height:50px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;border:3px solid var(--bg);box-shadow:0 0 0 1px var(--accent),0 8px 24px rgba(108,99,255,.4);transition:transform .15s}
+.nb-plus:active{transform:scale(.88)}
+.nb-plus svg{width:20px;height:20px;color:#fff;stroke-width:2.5}
+.nb-dot{width:6px;height:6px;border-radius:50%;background:var(--coral);position:absolute;top:3px;right:8px;border:1.5px solid var(--bg);display:none}
+
+/* Shared */
+.row{display:flex;align-items:center;justify-content:space-between}
+.sec-ttl{font-size:11px;font-weight:600;color:var(--t3);letter-spacing:.09em;text-transform:uppercase}
+.sec-act{font-size:12px;color:var(--a2);cursor:pointer;font-family:var(--fc)}
+.btn-p{width:100%;padding:12px;background:var(--accent);border:none;border-radius:var(--rr);color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--f);display:flex;align-items:center;justify-content:center;gap:7px;transition:opacity .15s,transform .1s}
+.btn-p:active{opacity:.85;transform:scale(.98)}
+.btn-p:disabled{opacity:.35;cursor:not-allowed;transform:none}
+.btn-g{width:100%;padding:11px;background:var(--bg4);border:1px solid var(--line2);border-radius:var(--rr);color:var(--t2);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--f);transition:background .15s}
+.btn-g:active{background:var(--bg5)}
+.tag{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500;display:inline-flex;align-items:center}
+.th{background:var(--r2);color:var(--red)}
+.tm{background:var(--am2);color:var(--amber)}
+.tl{background:var(--g2);color:var(--green)}
+.td{background:var(--bg5);color:var(--t2)}
+.spin{width:15px;height:15px;border:2px solid var(--line2);border-top-color:var(--a2);border-radius:50%;animation:sp .65s linear infinite;flex-shrink:0}
+@keyframes sp{to{transform:rotate(360deg)}}
+.fi{animation:fadeIn .22s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.hint{text-align:center;padding:28px 20px;color:var(--t3);font-size:13px;line-height:1.8;font-family:var(--fc)}
+.fld{margin-bottom:14px}
+.fld label{display:block;font-size:11px;font-weight:600;color:var(--t3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px}
+.fld input,.fld select,.fld textarea{width:100%;background:var(--bg4);border:1px solid var(--line);border-radius:var(--rr);padding:11px 13px;font-size:14px;font-family:var(--fc);color:var(--t1);outline:none;transition:border-color .15s;-webkit-appearance:none;appearance:none}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--a4)}
+.fld input::placeholder,.fld textarea::placeholder{color:var(--t3)}
+.fld textarea{resize:none}
+.fld-row{display:flex;gap:10px}
+.fld-row .fld{flex:1}
+
+/* Auth */
+#auth{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:var(--bg)}
+.auth-logo{font-size:30px;font-weight:600;margin-bottom:5px;letter-spacing:-1px}
+.auth-logo em{color:var(--accent);font-style:normal}
+.auth-sub{font-size:13px;color:var(--t3);margin-bottom:28px;font-family:var(--fc)}
+.auth-box{background:var(--bg3);border:1px solid var(--line);border-radius:var(--rr2);padding:22px;width:100%;max-width:340px}
+.atabs{display:flex;gap:2px;background:var(--bg4);border-radius:10px;padding:3px;margin-bottom:18px}
+.atab{flex:1;padding:8px;text-align:center;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;color:var(--t3);transition:all .18s}
+.atab.on{background:var(--bg2);color:var(--t1)}
+.auth-err{color:var(--red);font-size:12px;margin-bottom:10px;font-family:var(--fc);min-height:16px}
+
+/* Home */
+.hd{padding:48px 18px 10px}
+.hd-greet{font-size:12px;color:var(--t3);margin-bottom:3px;font-family:var(--fc)}
+.hd-title{font-size:24px;font-weight:600;letter-spacing:-.4px;line-height:1.25}
+.hd-title em{color:var(--a2);font-style:normal}
+.clock-row{display:inline-flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--line);border-radius:20px;padding:5px 12px;margin-top:10px}
+.clock-n{font-size:16px;font-weight:600;letter-spacing:-1px;font-family:var(--fm)}
+.clock-d{width:1px;height:12px;background:var(--line2)}
+.clock-s{font-size:11px;color:var(--t2);font-family:var(--fc)}
+
+/* Progress ring */
+.prog{display:flex;align-items:center;gap:14px;padding:14px 18px 0}
+.ring{position:relative;width:70px;height:70px;flex-shrink:0}
+.ring svg{transform:rotate(-90deg)}
+.r-bg{fill:none;stroke:var(--bg3);stroke-width:5}
+.r-fg{fill:none;stroke:var(--accent);stroke-width:5;stroke-linecap:round;transition:stroke-dashoffset .5s ease}
+.ring-txt{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring-pct{font-size:14px;font-weight:600}
+.ring-lbl{font-size:9px;color:var(--t3);letter-spacing:.05em}
+.pstats{display:flex;gap:14px}
+.pst-v{font-size:19px;font-weight:600}
+.pst-k{font-size:10px;color:var(--t3);font-family:var(--fc);margin-top:1px}
+
+/* Upcoming strip */
+.up-strip{padding:12px 18px 0;display:flex;flex-direction:column;gap:6px}
+.up-item{display:flex;align-items:center;gap:10px;background:var(--bg3);border:1px solid var(--line);border-radius:var(--rr);padding:9px 12px}
+.up-item.urg{border-color:rgba(239,68,68,.3)}
+.up-item.soon{border-color:rgba(245,158,11,.25)}
+.up-left{flex:1;min-width:0}
+.up-name{font-size:13px;font-weight:500;font-family:var(--fc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.up-when{font-size:11px;color:var(--t3);font-family:var(--fc);margin-top:2px}
+.up-badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;white-space:nowrap}
+.ub-r{background:var(--r2);color:var(--red)}
+.ub-a{background:var(--am2);color:var(--amber)}
+.ub-g{background:var(--g2);color:var(--green)}
+
+/* AI suggest */
+.sug-wrap{margin:12px 18px 0}
+.sug-hd{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.sug-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 2s ease infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.sug-lbl{font-size:10px;font-weight:600;color:var(--a2);letter-spacing:.08em;text-transform:uppercase}
+.sug-card{background:linear-gradient(135deg,#110F26,#14112A);border:1px solid var(--a4);border-radius:var(--rr2);padding:14px 15px;font-size:13px;color:var(--t2);line-height:1.75;font-family:var(--fc)}
+.sug-card strong{color:var(--t1);font-weight:500}
+.sug-items{margin-top:9px;display:flex;flex-direction:column;gap:7px}
+.sug-row{display:flex;align-items:flex-start;gap:8px}
+.sug-ico{font-size:13px;flex-shrink:0;margin-top:2px}
+.sug-txt{flex:1;font-size:12px;line-height:1.6}
+.sug-add{font-size:11px;color:var(--a2);background:var(--a3);padding:2px 8px;border-radius:8px;cursor:pointer;flex-shrink:0;white-space:nowrap;transition:background .15s}
+.sug-add:active{background:var(--a4)}
+
+/* Plan card */
+.plan-card{background:linear-gradient(135deg,#110F26,#14112A);border:1px solid var(--a4);border-radius:var(--rr2);padding:15px;margin:14px 18px 0}
+.plan-top{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.plan-ico{width:33px;height:33px;background:var(--a3);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px}
+.plan-ttl{font-size:14px;font-weight:600}
+.plan-sub{font-size:11px;color:var(--a2);font-family:var(--fc)}
+
+/* Timeline header */
+.tl-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 0}
+.replan-btn{display:flex;align-items:center;gap:5px;background:var(--a3);border:1px solid var(--a4);border-radius:20px;padding:5px 13px;cursor:pointer;font-size:12px;color:var(--a2);font-family:var(--fc);transition:background .15s;user-select:none}
+.replan-btn:active{background:var(--a4)}
+.replan-btn svg{width:13px;height:13px;flex-shrink:0}
+
+/* AI summary */
+.ai-sum{margin:10px 18px 0;background:var(--bg3);border:1px solid var(--line);border-radius:var(--rr2);padding:12px 15px;font-size:13px;color:var(--t2);line-height:1.75;font-family:var(--fc)}
+.ai-sum strong{color:var(--t1);font-weight:500}
+.ai-ins{display:flex;align-items:flex-start;gap:8px;margin:8px 18px 0;background:var(--g2);border:1px solid rgba(34,197,94,.15);border-radius:var(--rr);padding:10px 12px;font-size:12px;color:var(--t2);font-family:var(--fc)}
+
+/* Timeline */
+.tl-wrap{padding:10px 0 0}
+.tl-glbl{font-size:10px;font-weight:600;color:var(--t3);letter-spacing:.09em;text-transform:uppercase;padding:0 18px 6px}
+.tl-row{display:flex;gap:0;padding:0 8px 0 4px}
+.tl-L{width:56px;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;padding-top:12px}
+.tl-time{font-size:10px;font-family:var(--fm);color:var(--t3);padding-right:10px}
+.tl-M{width:22px;flex-shrink:0;display:flex;flex-direction:column;align-items:center}
+.tl-dot{width:9px;height:9px;border-radius:50%;background:var(--bg5);border:1.5px solid var(--line2);margin-top:13px;flex-shrink:0;z-index:1;transition:all .2s}
+.tl-dot.now{background:var(--accent);border-color:var(--accent);box-shadow:0 0 8px rgba(108,99,255,.55)}
+.tl-dot.done{background:var(--green);border-color:var(--green)}
+.tl-ln{width:1px;background:var(--line);flex:1;margin-top:2px}
+.tl-R{flex:1;min-width:0;padding:4px 10px 7px 0}
+.tl-card{background:var(--bg3);border:1px solid var(--line);border-radius:var(--rr);padding:10px 12px;position:relative}
+.tl-card.now{border-color:var(--a4);background:rgba(108,99,255,.06)}
+.tl-card.done{background:var(--bg2);border-color:var(--line)}
+.tl-ctop{display:flex;align-items:flex-start;gap:8px}
+.tl-name{font-size:13px;font-weight:500;font-family:var(--fc);flex:1;min-width:0}
+.tl-card.done .tl-name{text-decoration:line-through;color:var(--t3)}
+.tl-ck{width:24px;height:24px;border:1.5px solid var(--line2);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all .15s;background:var(--bg4)}
+.tl-ck.on{background:var(--green);border-color:var(--green)}
+.tl-ck svg{display:none;width:12px;height:12px}
+.tl-ck.on svg{display:block}
+.tl-meta{display:flex;align-items:center;gap:5px;margin-top:5px;flex-wrap:wrap}
+.tl-te{display:flex;align-items:center;gap:5px;margin-top:7px;padding-top:7px;border-top:1px solid var(--line)}
+.te-lbl{font-size:10px;color:var(--t3);font-family:var(--fc)}
+.te-inp{background:var(--bg4);border:1px solid var(--line2);border-radius:6px;color:var(--t1);font-size:12px;font-family:var(--fm);padding:3px 7px;outline:none;width:60px;transition:border-color .15s}
+.te-inp:focus{border-color:var(--a4)}
+.te-arr{color:var(--t3);font-size:12px}
+.tl-gp{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--a2);margin-top:3px}
+.tl-gp::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--accent)}
+
+/* Task list */
+.task-sec{padding:12px 18px 0}
+.task-item{display:flex;align-items:center;gap:10px;background:var(--bg3);border:1px solid var(--line);border-radius:var(--rr);padding:11px 13px;margin-bottom:6px;transition:opacity .2s}
+.task-item.done{opacity:.4}
+.task-cb{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--line2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all .15s}
+.task-cb.on{background:var(--accent);border-color:var(--accent)}
+.task-cb svg{display:none;width:11px;height:11px}
+.task-cb.on svg{display:block}
+.task-bd{flex:1;min-width:0}
+.task-nm{font-size:13px;font-weight:500;font-family:var(--fc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.task-item.done .task-nm{text-decoration:line-through;color:var(--t3)}
+.task-tags{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap}
+.task-del{width:26px;height:26px;border:none;background:none;color:var(--t3);cursor:pointer;border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.task-del:active{color:var(--red)}
+.task-del svg{width:14px;height:14px}
+
+/* API warning */
+.api-warn{background:var(--am2);border:1px solid rgba(245,158,11,.25);border-radius:var(--rr);padding:10px 13px;margin:12px 18px 0;font-size:12px;color:var(--amber);font-family:var(--fc);line-height:1.6;cursor:pointer}
+
+/* Add screen */
+.add-hd{padding:18px 18px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
+.add-ttl{font-size:17px;font-weight:600}
+.add-cls{width:30px;height:30px;border:none;background:var(--bg3);border-radius:50%;cursor:pointer;color:var(--t2);display:flex;align-items:center;justify-content:center}
+.add-cls svg{width:14px;height:14px}
+.add-tabs{display:flex;gap:2px;background:var(--bg3);border-radius:10px;padding:3px;margin:14px 18px 0}
+.add-tab{flex:1;padding:8px 4px;text-align:center;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;color:var(--t3);font-family:var(--fc);transition:all .18s}
+.add-tab.on{background:var(--bg4);color:var(--t1)}
+.add-body{padding:16px 18px}
+
+/* Subtask pick list */
+.stlist{display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
+.sti{display:flex;align-items:center;gap:10px;background:var(--bg4);border:1px solid var(--line);border-radius:var(--rr);padding:10px 12px;cursor:pointer;transition:border-color .15s}
+.sti.on{border-color:var(--accent)}
+.sti-cb{width:18px;height:18px;border-radius:4px;border:1.5px solid var(--line2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.sti-cb.on{background:var(--accent);border-color:var(--accent)}
+.sti-cb svg{display:none;width:10px;height:10px}
+.sti-cb.on svg{display:block}
+.sti-bd{flex:1;min-width:0}
+.sti-nm{font-size:13px;font-weight:500;font-family:var(--fc)}
+.sti-meta{display:flex;gap:5px;margin-top:3px}
+
+/* Calendar */
+.cal-hd{padding:48px 18px 14px}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.cal-ttl{font-size:18px;font-weight:600;font-family:var(--fc)}
+.cal-btns{display:flex;gap:6px}
+.cal-btn{width:30px;height:30px;border:1px solid var(--line);border-radius:8px;background:var(--bg3);color:var(--t2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.cal-btn:active{background:var(--bg5)}
+.cal-btn svg{width:14px;height:14px}
+.cal-ghd{display:grid;grid-template-columns:repeat(7,1fr);margin:0 18px 4px}
+.cal-gh{text-align:center;font-size:10px;font-weight:600;color:var(--t3);padding:3px 0}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:0 18px}
+.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:9px;cursor:pointer;position:relative;transition:background .15s}
+.cal-day:active{background:var(--bg4)}
+.cal-day.today{background:var(--a3);outline:1px solid var(--a4)}
+.cal-day.today .cdn{color:var(--a2);font-weight:700}
+.cal-day.sel{background:var(--accent);outline:none}
+.cal-day.sel .cdn{color:#fff;font-weight:700}
+.cal-day.other .cdn{color:var(--t3)}
+.cal-day.hasev::after{content:'';width:4px;height:4px;border-radius:50%;background:var(--a2);position:absolute;bottom:4px}
+.cal-day.sel::after{background:rgba(255,255,255,.6)}
+.cdn{font-size:13px;color:var(--t1)}
+.cal-evs{padding:14px 18px 0}
+.cal-edate{font-size:13px;font-weight:600;color:var(--t2);margin-bottom:10px;font-family:var(--fc)}
+.cal-ev{display:flex;align-items:center;gap:10px;background:var(--bg3);border:1px solid var(--line);border-radius:var(--rr);padding:11px 13px;margin-bottom:7px}
+.ev-bar{width:3px;border-radius:2px;height:38px;flex-shrink:0}
+.ev-exam{background:var(--accent)}
+.ev-deadline{background:var(--red)}
+.ev-meeting{background:var(--green)}
+.ev-trip{background:var(--amber)}
+.ev-other{background:var(--t3)}
+.ev-bd{flex:1;min-width:0}
+.ev-nm{font-size:13px;font-weight:500;font-family:var(--fc)}
+.ev-mt{font-size:11px;color:var(--t3);font-family:var(--fc);margin-top:2px}
+.ev-del{width:22px;height:22px;border:none;background:none;color:var(--t3);cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:4px;flex-shrink:0}
+.ev-del svg{width:13px;height:13px}
+.cal-add-btn{width:100%;padding:10px;background:var(--bg4);border:1px dashed var(--line2);border-radius:var(--rr);color:var(--t3);font-size:12px;cursor:pointer;font-family:var(--fc);transition:all .15s;margin-top:4px}
+.cal-add-btn:active{border-color:var(--a4);color:var(--a2)}
+
+/* Profile */
+.pf-hd{padding:52px 18px 20px;text-align:center}
+.avatar{width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#A78BFA);margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff;position:relative}
+.av-edit{position:absolute;bottom:-2px;right:-2px;width:20px;height:20px;background:var(--bg3);border:1.5px solid var(--line);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px}
+.pf-name{font-size:18px;font-weight:600;cursor:pointer;font-family:var(--f)}
+.pf-nm-inp{background:transparent;border:none;border-bottom:1.5px solid var(--a4);color:var(--t1);font-size:18px;font-weight:600;text-align:center;outline:none;font-family:var(--f);width:160px}
+.pf-sub{font-size:12px;color:var(--t3);font-family:var(--fc);margin-top:3px}
+.sc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 18px 16px}
+.sc{background:var(--bg3);border:1px solid var(--line);border-radius:var(--rr);padding:12px}
+.sc-ico{font-size:16px;margin-bottom:4px}
+.sc-val{font-size:20px;font-weight:700}
+.sc-key{font-size:10px;color:var(--t3);font-family:var(--fc)}
+.pf-sec{margin:0 18px 14px}
+.pf-sec-ttl{font-size:10px;font-weight:600;color:var(--t3);letter-spacing:.09em;text-transform:uppercase;margin-bottom:8px}
+.pf-card{background:var(--bg3);border:1px solid var(--line);border-radius:var(--rr2);overflow:hidden}
+.pf-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line)}
+.pf-row:last-child{border-bottom:none}
+.pf-rl{display:flex;align-items:center;gap:10px}
+.pf-ico{width:28px;height:28px;border-radius:7px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:13px}
+.pf-nm{font-size:13px;font-family:var(--fc)}
+.pf-ds{font-size:11px;color:var(--t3);font-family:var(--fc)}
+.tog{width:38px;height:22px;background:var(--bg5);border-radius:11px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.tog.on{background:var(--accent)}
+.tog::after{content:'';position:absolute;width:16px;height:16px;background:#fff;border-radius:50%;top:3px;left:3px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.tog.on::after{transform:translateX(16px)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;padding:4px 0 8px}
+.chip{padding:6px 13px;border-radius:20px;border:1px solid var(--line);background:var(--bg4);color:var(--t3);font-size:12px;cursor:pointer;transition:all .18s;font-family:var(--fc)}
+.chip.on{border-color:var(--accent);background:var(--a3);color:var(--a2)}
+.api-sec{margin:0 18px 14px}
+.api-lbl{font-size:10px;font-weight:600;color:var(--t3);letter-spacing:.09em;text-transform:uppercase;margin-bottom:8px}
+.api-wrap{position:relative}
+.api-inp{width:100%;background:var(--bg4);border:1px solid var(--line);border-radius:var(--rr);padding:10px 44px 10px 13px;font-size:12px;font-family:var(--fm);color:var(--t1);outline:none;transition:border-color .15s}
+.api-inp:focus{border-color:var(--a4)}
+.api-sv{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--a2);cursor:pointer;background:var(--a3);padding:3px 8px;border-radius:6px;border:none;font-family:var(--f);transition:background .15s}
+.api-sv:active{background:var(--a4)}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);z-index:200;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .22s}
+.modal-bg.on{opacity:1;pointer-events:all}
+.modal{background:var(--bg2);border-radius:var(--rr3) var(--rr3) 0 0;width:100%;max-width:500px;transform:translateY(100%);transition:transform .28s cubic-bezier(.32,.72,0,1);max-height:86vh;display:flex;flex-direction:column}
+.modal-bg.on .modal{transform:none}
+.modal-hdl{width:32px;height:3px;background:var(--line2);border-radius:2px;margin:10px auto 0;flex-shrink:0}
+.modal-hd{padding:16px 18px 12px;border-bottom:1px solid var(--line);flex-shrink:0}
+.modal-ttl{font-size:16px;font-weight:600}
+.modal-sub{font-size:12px;color:var(--t2);margin-top:3px;font-family:var(--fc);line-height:1.6}
+.modal-bd{padding:14px 18px;overflow-y:auto;flex:1}
+.modal-ft{padding:14px 18px;border-top:1px solid var(--line);flex-shrink:0;padding-bottom:calc(14px + var(--safe))}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth">
+  <div class="auth-logo">Flow<em>·</em></div>
+  <div class="auth-sub">智能日程规划，让每天高效</div>
+  <div class="auth-box">
+    <div class="atabs">
+      <div class="atab on" id="atab0" onclick="setAuthMode('login')">登录</div>
+      <div class="atab" id="atab1" onclick="setAuthMode('reg')">注册</div>
+    </div>
+    <div class="auth-err" id="authErr"></div>
+    <div class="fld"><label>用户名</label><input id="aUser" type="text" placeholder="输入用户名"></div>
+    <div class="fld"><label>密码</label><input id="aPass" type="password" placeholder="输入密码（至少4位）"></div>
+    <div class="fld" id="aNickWrap" style="display:none"><label>昵称（可选）</label><input id="aNick" type="text" placeholder="怎么称呼你"></div>
+    <button class="btn-p" onclick="authSubmit()"><span id="aBtnTxt">登录</span></button>
+    <div style="text-align:center;margin-top:12px;font-size:13px;color:var(--t3);font-family:var(--fc)" id="authSwitch">
+      还没有账号？<span style="color:var(--a2);cursor:pointer" onclick="setAuthMode('reg')">注册</span>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <div id="screens">
+
+    <!-- HOME -->
+    <div class="screen on" id="s-home">
+      <div class="hd">
+        <div class="hd-greet" id="greetTxt">你好</div>
+        <div class="hd-title">今天，<em id="homeNameEl">准备好了</em></div>
+        <div class="clock-row">
+          <span class="clock-n" id="clockEl">--:--</span>
+          <div class="clock-d"></div>
+          <span class="clock-s" id="dateTxt">--</span>
+        </div>
+      </div>
+      <div id="apiWarnEl" class="api-warn" onclick="goTab('profile')" style="display:none">
+        ⚠ <strong>未配置 API Key</strong> — 点此前往「我的」设置，或继续使用本地备选方案
+      </div>
+      <div id="progWrap" style="display:none">
+        <div class="prog">
+          <div class="ring">
+            <svg width="70" height="70" viewBox="0 0 70 70">
+              <circle class="r-bg" cx="35" cy="35" r="29"/>
+              <circle class="r-fg" id="ringFg" cx="35" cy="35" r="29" stroke-dasharray="182.2" stroke-dashoffset="182.2"/>
+            </svg>
+            <div class="ring-txt"><div class="ring-pct" id="ringPct">0%</div><div class="ring-lbl">DONE</div></div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--t3);margin-bottom:7px;font-family:var(--fc)">今日进度</div>
+            <div class="pstats">
+              <div><div class="pst-v" id="stDone">0</div><div class="pst-k">完成</div></div>
+              <div><div class="pst-v" id="stLeft">0</div><div class="pst-k">待办</div></div>
+              <div><div class="pst-v" id="stHrs">0h</div><div class="pst-k">时长</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="upWrap" class="up-strip"></div>
+      <div id="sugWrap" class="sug-wrap" style="display:none">
+        <div class="sug-hd"><div class="sug-dot"></div><div class="sug-lbl">AI 今日建议</div></div>
+        <div class="sug-card" id="sugCard"><div style="display:flex;align-items:center;gap:8px;color:var(--t3);font-size:12px"><div class="spin"></div>分析中...</div></div>
+      </div>
+      <!-- plan card (shown before first plan) -->
+      <div id="planCardWrap">
+        <div class="plan-card">
+          <div class="plan-top">
+            <div class="plan-ico">✦</div>
+            <div><div class="plan-ttl">AI 科学日程规划</div><div class="plan-sub">按认知节律自动排布任务</div></div>
+          </div>
+          <button class="btn-p" id="planBtn" onclick="runPlan()">生成时间轴</button>
+        </div>
+      </div>
+      <!-- timeline (shown after plan) -->
+      <div id="tlWrap" style="display:none">
+        <div id="aiSumWrap"></div>
+        <div class="tl-hdr">
+          <div class="sec-ttl">今日时间轴</div>
+          <div class="replan-btn" id="replanBtn" onclick="runReplan()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            重新规划
+          </div>
+        </div>
+        <div id="tlContent" class="tl-wrap"></div>
+      </div>
+      <!-- task list -->
+      <div id="taskSecWrap" class="task-sec">
+        <div class="row" style="margin-bottom:10px">
+          <div class="sec-ttl">待办清单</div>
+          <div class="sec-act" onclick="goAdd()">+ 添加</div>
+        </div>
+        <div id="taskList"></div>
+      </div>
+    </div>
+
+    <!-- ADD -->
+    <div class="screen" id="s-add">
+      <div class="add-hd">
+        <div class="add-ttl">添加任务</div>
+        <button class="add-cls" onclick="goTab('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="add-tabs">
+        <div class="add-tab on" id="atab-0" onclick="setAddTab(0)">大任务分解</div>
+        <div class="add-tab" id="atab-1" onclick="setAddTab(1)">直接添加</div>
+      </div>
+      <div class="add-body" id="addBody"></div>
+    </div>
+
+    <!-- CALENDAR -->
+    <div class="screen" id="s-calendar">
+      <div class="cal-hd">
+        <div class="cal-nav">
+          <div class="cal-ttl" id="calTitle">--</div>
+          <div class="cal-btns">
+            <button class="cal-btn" onclick="calMove(-1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+            <button class="cal-btn" onclick="calMove(1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
+          </div>
+        </div>
+        <div class="cal-ghd"><div class="cal-gh">日</div><div class="cal-gh">一</div><div class="cal-gh">二</div><div class="cal-gh">三</div><div class="cal-gh">四</div><div class="cal-gh">五</div><div class="cal-gh">六</div></div>
+        <div class="cal-grid" id="calGrid"></div>
+      </div>
+      <div class="cal-evs" id="calEvs"></div>
+    </div>
+
+    <!-- PROFILE -->
+    <div class="screen" id="s-profile">
+      <div class="pf-hd">
+        <div class="avatar" id="avatarEl"><span id="avatarTxt">?</span><div class="av-edit" onclick="editName()">✎</div></div>
+        <div class="pf-name" id="pfName" onclick="editName()">--</div>
+        <div class="pf-sub">点击名字修改</div>
+      </div>
+      <div class="sc-grid">
+        <div class="sc"><div class="sc-ico">✅</div><div class="sc-val" id="scDone">0</div><div class="sc-key">累计完成</div></div>
+        <div class="sc"><div class="sc-ico">⏱</div><div class="sc-val" id="scHrs">0h</div><div class="sc-key">专注时长</div></div>
+        <div class="sc"><div class="sc-ico">🔥</div><div class="sc-val" id="scStr">1</div><div class="sc-key">连续天数</div></div>
+        <div class="sc"><div class="sc-ico">✦</div><div class="sc-val" id="scPlan">0</div><div class="sc-key">AI规划次数</div></div>
+      </div>
+      <div class="api-sec">
+        <div class="api-lbl">DeepSeek API Key</div>
+        <div class="api-wrap">
+          <input class="api-inp" id="apiInp" type="password" placeholder="sk-xxxxxxxx（留空使用本地备选）">
+          <button class="api-sv" onclick="saveApiKey()">保存</button>
+        </div>
+        <div style="font-size:11px;color:var(--t3);margin-top:5px;font-family:var(--fc)">未填写时使用本地智能备选，所有功能照常可用</div>
+      </div>
+      <div class="pf-sec">
+        <div class="pf-sec-ttl">工作时间</div>
+        <div class="pf-card">
+          <div class="pf-row"><div class="pf-rl"><div class="pf-ico">🌅</div><div><div class="pf-nm">开始时间</div><div class="pf-ds">AI从此时开始规划</div></div></div><input type="time" id="pStart" value="09:00" style="background:var(--bg4);border:1px solid var(--line);color:var(--t1);border-radius:6px;padding:4px 8px;font-size:12px;font-family:var(--fm);outline:none" onchange="savePref()"></div>
+          <div class="pf-row"><div class="pf-rl"><div class="pf-ico">🌆</div><div><div class="pf-nm">结束时间</div></div></div><input type="time" id="pEnd" value="22:00" style="background:var(--bg4);border:1px solid var(--line);color:var(--t1);border-radius:6px;padding:4px 8px;font-size:12px;font-family:var(--fm);outline:none" onchange="savePref()"></div>
+          <div class="pf-row"><div class="pf-rl"><div class="pf-ico">🍱</div><div><div class="pf-nm">午餐休息</div><div class="pf-ds">12:00–13:00</div></div></div><div class="tog on" id="togL" onclick="this.classList.toggle('on');savePref()"></div></div>
+          <div class="pf-row"><div class="pf-rl"><div class="pf-ico">🍜</div><div><div class="pf-nm">晚餐休息</div><div class="pf-ds">18:00–19:00</div></div></div><div class="tog on" id="togD" onclick="this.classList.toggle('on');savePref()"></div></div>
+        </div>
+      </div>
+      <div class="pf-sec">
+        <div class="pf-sec-ttl">偏好</div>
+        <div class="pf-card">
+          <div class="pf-row" style="flex-direction:column;align-items:flex-start;gap:4px">
+            <div class="pf-nm">高效时段</div>
+            <div class="chips" id="peakChips">
+              <div class="chip on" data-v="morning" onclick="selChip(this,'peak')">上午党</div>
+              <div class="chip" data-v="afternoon" onclick="selChip(this,'peak')">下午党</div>
+              <div class="chip" data-v="night" onclick="selChip(this,'night')">夜猫子</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center;margin:14px 18px 20px">
+        <button onclick="logout()" style="background:none;border:1px solid var(--line);border-radius:var(--rr);padding:10px 24px;color:var(--t3);font-size:13px;cursor:pointer;font-family:var(--fc)">退出登录</button>
+      </div>
+    </div>
+
+  </div><!-- /screens -->
+
+  <!-- NAV -->
+  <div id="nav">
+    <button class="nb on" id="nb-home" onclick="goTab('home')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>今天</span>
+    </button>
+    <button class="nb" id="nb-calendar" onclick="goTab('calendar')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span>日历</span>
+      <div class="nb-dot" id="calDot"></div>
+    </button>
+    <div class="nb-mid">
+      <div class="nb-plus" onclick="goAdd()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </div>
+    </div>
+    <button class="nb" id="nb-profile" onclick="goTab('profile')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>我的</span>
+    </button>
+  </div>
+</div><!-- /app -->
+
+<!-- MODAL -->
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-hdl"></div>
+    <div class="modal-hd"><div class="modal-ttl" id="modalTtl"></div><div class="modal-sub" id="modalSub"></div></div>
+    <div class="modal-bd" id="modalBd"></div>
+    <div class="modal-ft" id="modalFt"></div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────
+//  DATABASE  (localStorage, multi-user)
+// ─────────────────────────────────────────
+var DB = {};
+var CU = null;  // current user key
+
+function loadDB(){ try{ DB = JSON.parse(localStorage.getItem('flow_db') || '{}'); }catch(e){ DB = {}; } }
+function saveDB(){ localStorage.setItem('flow_db', JSON.stringify(DB)); }
+function U(){ return DB[CU] || {}; }
+function uSet(k, v){ if(!DB[CU]) return; DB[CU][k] = v; saveDB(); }
+function uGet(k){ return (DB[CU] || {})[k]; }
+
+loadDB();
+
+// Auto-restore session
+(function(){
+  var s = localStorage.getItem('flow_sess');
+  if(s && DB[s]){ CU = s; initApp(); }
+})();
+
+// ─────────────────────────────────────────
+//  AUTH
+// ─────────────────────────────────────────
+var authMode = 'login';
+function setAuthMode(m){
+  authMode = m;
+  document.getElementById('atab0').classList.toggle('on', m==='login');
+  document.getElementById('atab1').classList.toggle('on', m==='reg');
+  document.getElementById('aNickWrap').style.display = m==='reg' ? '' : 'none';
+  document.getElementById('aBtnTxt').textContent = m==='login' ? '登录' : '注册';
+  document.getElementById('authSwitch').innerHTML = m==='login'
+    ? '还没有账号？<span style="color:var(--a2);cursor:pointer" onclick="setAuthMode(\'reg\')">注册</span>'
+    : '已有账号？<span style="color:var(--a2);cursor:pointer" onclick="setAuthMode(\'login\')">登录</span>';
+  document.getElementById('authErr').textContent = '';
+}
+
+function authSubmit(){
+  var u = document.getElementById('aUser').value.trim();
+  var p = document.getElementById('aPass').value;
+  var n = document.getElementById('aNick').value.trim();
+  var err = document.getElementById('authErr');
+  if(!u || !p){ err.textContent='请填写用户名和密码'; return; }
+  loadDB();
+  if(authMode === 'login'){
+    if(!DB[u]){ err.textContent='用户不存在'; return; }
+    if(DB[u].pwd !== btoa(unescape(encodeURIComponent(p)))){ err.textContent='密码错误'; return; }
+    CU = u;
+  } else {
+    if(DB[u]){ err.textContent='用户名已存在'; return; }
+    if(p.length < 4){ err.textContent='密码至少4位'; return; }
+    DB[u] = {
+      pwd: btoa(unescape(encodeURIComponent(p))),
+      name: n || u,
+      tasks: [],
+      events: [],
+      pref: { start:'09:00', end:'22:00', lunch:true, dinner:true, peak:'morning' },
+      stats: { done:0, hours:0, streak:1, plans:0 },
+      apiKey: '',
+      schedule: null
+    };
+    saveDB(); CU = u;
+  }
+  localStorage.setItem('flow_sess', CU);
+  initApp();
+}
+
+function logout(){
+  CU = null;
+  localStorage.removeItem('flow_sess');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('auth').style.display = 'flex';
+  document.getElementById('aPass').value = '';
+  document.getElementById('authErr').textContent = '';
+}
+
+// ─────────────────────────────────────────
+//  APP INIT
+// ─────────────────────────────────────────
+var clockTimer = null;
+
+function initApp(){
+  document.getElementById('auth').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  calInit();          // init calendar state FIRST
+  syncProfile();      // fill profile UI
+  renderTaskList();   // render task list
+  renderProgress();   // render progress ring
+  renderUpcoming();   // upcoming events strip
+  loadAiSug();        // AI suggestions
+  checkApiWarn();     // API key warning
+  // restore saved schedule if any
+  var saved = uGet('schedule');
+  if(saved && saved.groups){ showTimeline(saved); } else { hideTimeline(); }
+  // clock
+  tickClock();
+  if(clockTimer) clearInterval(clockTimer);
+  clockTimer = setInterval(tickClock, 20000);
+}
+
+// ─────────────────────────────────────────
+//  CLOCK
+// ─────────────────────────────────────────
+function tickClock(){
+  var now = new Date();
+  var h = String(now.getHours()).padStart(2,'0');
+  var m = String(now.getMinutes()).padStart(2,'0');
+  document.getElementById('clockEl').textContent = h + ':' + m;
+  var days = ['周日','周一','周二','周三','周四','周五','周六'];
+  document.getElementById('dateTxt').textContent =
+    (now.getMonth()+1) + '月' + now.getDate() + '日 ' + days[now.getDay()];
+  var hr = now.getHours();
+  var g = hr<6?'夜深了' : hr<12?'早上好' : hr<14?'午安' : hr<18?'下午好' : hr<22?'晚上好' : '夜深了';
+  var uname = (DB[CU] || {}).name || '';
+  document.getElementById('greetTxt').textContent = g + (uname ? '，' + uname : '');
+}
+
+// ─────────────────────────────────────────
+//  NAV / TAB
+// ─────────────────────────────────────────
+function goTab(tab){
+  ['home','add','calendar','profile'].forEach(function(t){
+    var el = document.getElementById('s-'+t);
+    if(el) el.classList.toggle('on', t===tab);
+  });
+  ['nb-home','nb-calendar','nb-profile'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el) el.classList.remove('on');
+  });
+  var map = {home:'nb-home', calendar:'nb-calendar', profile:'nb-profile'};
+  if(map[tab]){ var el = document.getElementById(map[tab]); if(el) el.classList.add('on'); }
+  if(tab === 'calendar') renderCalendar();
+  if(tab === 'profile')  syncProfileStats();
+}
+
+function goAdd(){
+  goTab('add');
+  setAddTab(0);
+}
+
+// ─────────────────────────────────────────
+//  API
+// ─────────────────────────────────────────
+function getKey(){ return (DB[CU] || {}).apiKey || ''; }
+
+function checkApiWarn(){
+  document.getElementById('apiWarnEl').style.display = getKey() ? 'none' : '';
+}
+
+function saveApiKey(){
+  var k = document.getElementById('apiInp').value.trim();
+  uSet('apiKey', k);
+  document.getElementById('apiInp').value = '';
+  checkApiWarn();
+  toast('API Key 已保存');
+}
+
+async function callDS(messages, maxTok){
+  var key = getKey();
+  if(!key) throw new Error('no_key');
+  var r = await fetch('https://api.deepseek.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','Authorization':'Bearer '+key},
+    body: JSON.stringify({model:'deepseek-chat', max_tokens: maxTok||800, messages: messages, stream:false})
+  });
+  if(!r.ok) throw new Error('http_'+r.status);
+  var d = await r.json();
+  return d.choices[0].message.content;
+}
+
+function parseJ(txt){
+  try{ return JSON.parse(txt.replace(/```json|```/g,'').trim()); }catch(e){ return null; }
+}
+
+// ─────────────────────────────────────────
+//  TASKS
+// ─────────────────────────────────────────
+var taskSeq = Date.now();
+function newId(){ return 't'+(++taskSeq); }
+
+function getTasks(){ return uGet('tasks') || []; }
+function saveTasks(arr){ uSet('tasks', arr); }
+
+function priLabel(p){ return p==='high'?'高优先': p==='low'?'低优先':'中优先'; }
+function priCls(p){   return p==='high'?'th': p==='low'?'tl':'tm'; }
+var chkSVG = '<svg viewBox="0 0 12 10" fill="none"><path d="M1 5l3.5 3.5L11 1" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function renderTaskList(){
+  var tasks = getTasks();
+  var pending = tasks.filter(function(t){ return !t.done; });
+  var done    = tasks.filter(function(t){ return  t.done; });
+  var all = pending.concat(done);
+  var el = document.getElementById('taskList');
+  if(!all.length){
+    el.innerHTML = '<div class="hint">还没有任务<br>点下方 + 按钮添加你的第一个任务</div>';
+    document.getElementById('planBtn').disabled = true;
+    return;
+  }
+  document.getElementById('planBtn').disabled = !pending.length;
+  el.innerHTML = all.map(function(t){
+    return '<div class="task-item'+(t.done?' done':'')+'" id="ti-'+t.id+'">'
+      +'<div class="task-cb'+(t.done?' on':'')+'" onclick="toggleTask(\''+t.id+'\')">' + chkSVG + '</div>'
+      +'<div class="task-bd"><div class="task-nm">'+esc(t.name)+'</div>'
+      +'<div class="task-tags">'
+        +(t.dur ? '<span class="tag td">'+t.dur+'分钟</span>' : '')
+        +(t.priority ? '<span class="tag '+priCls(t.priority)+'">'+priLabel(t.priority)+'</span>' : '')
+      +'</div></div>'
+      +'<button class="task-del" onclick="delTask(\''+t.id+'\')">'
+        +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>'
+      +'</button>'
+      +'</div>';
+  }).join('');
+}
+
+function renderProgress(){
+  var tasks = getTasks();
+  var wrap = document.getElementById('progWrap');
+  if(!tasks.length){ wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  var done = tasks.filter(function(t){ return t.done; }).length;
+  var total = tasks.length;
+  var pct = Math.round(done/total*100);
+  document.getElementById('ringPct').textContent = pct + '%';
+  var c = 182.2;
+  document.getElementById('ringFg').style.strokeDashoffset = c - c*pct/100;
+  document.getElementById('stDone').textContent = done;
+  document.getElementById('stLeft').textContent = total - done;
+  var mins = tasks.filter(function(t){ return !t.done; }).reduce(function(s,t){ return s+(t.dur||30); }, 0);
+  document.getElementById('stHrs').textContent = Math.round(mins/60*10)/10 + 'h';
+}
+
+function toggleTask(id){
+  var tasks = getTasks();
+  var t = tasks.find(function(x){ return x.id===id; });
+  if(!t) return;
+  t.done = !t.done;
+  if(t.done){
+    var u = DB[CU]; u.stats = u.stats||{};
+    u.stats.done = (u.stats.done||0)+1;
+    u.stats.hours = Math.round(((u.stats.hours||0)+(t.dur||30)/60)*10)/10;
+    saveDB();
+  }
+  saveTasks(tasks);
+  renderTaskList();
+  renderProgress();
+  if(uGet('schedule')) doReplan('完成了「'+t.name+'」');
+}
+
+function delTask(id){
+  saveTasks(getTasks().filter(function(x){ return x.id!==id; }));
+  uSet('schedule', null);
+  hideTimeline();
+  renderTaskList();
+  renderProgress();
+}
+
+function addTaskObj(obj){
+  obj.id = newId(); obj.done = false;
+  var arr = getTasks(); arr.push(obj); saveTasks(arr);
+  renderTaskList(); renderProgress();
+}
+
+// ─────────────────────────────────────────
+//  ADD SCREEN
+// ─────────────────────────────────────────
+var addTabIdx = 0;
+function setAddTab(i){
+  addTabIdx = i;
+  document.getElementById('atab-0').classList.toggle('on', i===0);
+  document.getElementById('atab-1').classList.toggle('on', i===1);
+  if(i===0) renderDecompForm(); else renderDirectForm();
+}
+
+function renderDirectForm(){
+  document.getElementById('addBody').innerHTML =
+    '<div class="fld"><label>任务名称</label><input id="dName" type="text" placeholder="任务名称" autocomplete="off"></div>'
+    +'<div class="fld-row">'
+      +'<div class="fld"><label>时长（分钟）</label><input id="dDur" type="number" placeholder="30" min="5" max="480"></div>'
+      +'<div class="fld"><label>优先级</label><select id="dPri"><option value="high">高</option><option value="med" selected>中</option><option value="low">低</option></select></div>'
+    +'</div>'
+    +'<button class="btn-p" onclick="directAdd()">添加到待办</button>';
+}
+
+function directAdd(){
+  var name = document.getElementById('dName').value.trim();
+  if(!name){ document.getElementById('dName').focus(); return; }
+  var dur  = parseInt(document.getElementById('dDur').value) || 30;
+  var pri  = document.getElementById('dPri').value;
+  addTaskObj({name:name, dur:dur, priority:pri});
+  goTab('home');
+  toast('任务已添加');
+}
+
+function renderDecompForm(){
+  document.getElementById('addBody').innerHTML =
+    '<div class="fld"><label>大任务名称</label><textarea id="bigInput" rows="2" placeholder="如：专四备考、写论文、健身计划..."></textarea></div>'
+    +'<div class="fld"><label>补充说明（可选）</label><input id="bigNote" type="text" placeholder="如：还有30天、每天能投入2小时..."></div>'
+    +'<button class="btn-p" id="decompBtn" onclick="doDecomp()">'
+      +'<span id="decompTxt">✦ AI 智能分解</span>'
+    +'</button>'
+    +'<div style="font-size:11px;color:var(--t3);text-align:center;margin-top:8px;font-family:var(--fc)">AI会拆成3-5个具体可执行子任务，你勾选想要的</div>'
+    +'<div id="decompRes" style="margin-top:14px"></div>';
+}
+
+async function doDecomp(){
+  var name = document.getElementById('bigInput').value.trim();
+  var note = document.getElementById('bigNote').value.trim();
+  if(!name){ document.getElementById('bigInput').focus(); return; }
+  var btn = document.getElementById('decompBtn');
+  btn.disabled = true;
+  document.getElementById('decompTxt').textContent = '分析中...';
+  document.getElementById('decompRes').innerHTML =
+    '<div style="display:flex;align-items:center;gap:8px;color:var(--t3);font-size:13px;padding:10px 0"><div class="spin"></div>AI 正在分析任务…</div>';
+  var raw;
+  try{
+    raw = await callDS([
+      {role:'system', content:
+        '你是时间管理专家。将大任务拆分为3-5个【极度具体、可立刻执行】的子任务。\n'
+        +'规则：\n'
+        +'1. 每个子任务必须明确"做什么动作+具体内容"，例如：\n'
+        +'   ✓ 精听专四真题Section A对话10组并逐句校对答案\n'
+        +'   ✓ 完成高数第3章课后习题1-10并整理错题\n'
+        +'   ✗ 专四前期准备（太笼统）\n'
+        +'   ✗ 核心执行阶段（没有具体内容）\n'
+        +'2. 时长15-90分钟，优先级high/med/low\n'
+        +'3. 每行格式严格为：具体任务名 | 分钟数 | 优先级\n'
+        +'4. 只输出这几行，不要其他文字'},
+      {role:'user', content:'大任务：'+name+'\n补充：'+(note||'无')+'\n请给出今天可执行的具体子任务'}
+    ], 500);
+  }catch(e){
+    raw = localDecomp(name, note);
+  }
+  var items = parseDecomp(raw);
+  renderDecompResult(items);
+  btn.disabled = false;
+  document.getElementById('decompTxt').textContent = '✦ AI 智能分解';
+}
+
+function parseDecomp(raw){
+  return raw.split('\n').map(function(l){ return l.trim(); }).filter(Boolean).map(function(l){
+    var p = l.split('|').map(function(s){ return s.trim(); });
+    return { name: p[0]||l, dur: parseInt(p[1])||30, priority: p[2]||'med' };
+  }).filter(function(x){ return x.name; });
+}
+
+function renderDecompResult(items){
+  var sel = {};
+  items.forEach(function(_,i){ sel[i]=true; });
+  var wrap = document.getElementById('decompRes');
+
+  function draw(){
+    var cnt = Object.keys(sel).filter(function(k){ return sel[k]; }).length;
+    wrap.innerHTML =
+      '<div style="font-size:12px;color:var(--t2);margin-bottom:9px;font-family:var(--fc)">勾选想添加的子任务：</div>'
+      +'<div class="stlist">'
+      + items.map(function(item,i){
+        var on = sel[i];
+        return '<div class="sti'+(on?' on':'')+'" id="sti'+i+'" onclick="togSti('+i+')">'
+          +'<div class="sti-cb'+(on?' on':'')+'" id="sticb'+i+'">' + chkSVG + '</div>'
+          +'<div class="sti-bd"><div class="sti-nm">'+esc(item.name)+'</div>'
+          +'<div class="sti-meta"><span class="tag td">'+item.dur+'分钟</span>'
+          +'<span class="tag '+priCls(item.priority)+'">'+priLabel(item.priority)+'</span></div>'
+          +'</div></div>';
+      }).join('')
+      +'</div>'
+      +'<button class="btn-p" style="margin-top:2px" onclick="confirmDecomp()">确认添加（'+cnt+'项）</button>'
+      +'<button class="btn-g" style="margin-top:8px" onclick="renderDecompForm()">重新分解</button>';
+
+    window.togSti = function(i){
+      sel[i] = !sel[i]; draw();
+    };
+    window.confirmDecomp = function(){
+      var chosen = items.filter(function(_,i){ return sel[i]; });
+      if(!chosen.length){ toast('请至少选一项'); return; }
+      chosen.forEach(function(t){ addTaskObj({name:t.name, dur:t.dur, priority:t.priority}); });
+      goTab('home');
+      toast('已添加 '+chosen.length+' 个子任务');
+    };
+  }
+  draw();
+}
+
+// ─────────────────────────────────────────
+//  LOCAL DECOMPOSE FALLBACK  (specific & actionable)
+// ─────────────────────────────────────────
+function localDecomp(name, note){
+  var map = {
+    '专四':  ['精听专四真题Section A新闻听力5篇，逐句对照文本校对|40|high',
+              '完成专四阅读理解一套（词汇+篇章理解）并逐题分析错误原因|50|high',
+              '背诵专四高频词汇表B组30个单词及例句|25|high',
+              '完成专四写作：按提纲写200词短文并检查时态语态|30|med',
+              '做专四翻译练习题一组（汉译英），对照参考答案修改|25|med'],
+    '专八':  ['精听专八真题Part A对话及Part B短文各一篇，逐句校对|50|high',
+              '完成专八阅读理解篇章一篇，标注所有生词与长难句分析|45|high',
+              '背诵专八核心词汇C组25词，重点记搭配与辨析|25|high',
+              '专八写作：完成一篇300词议论文初稿，检查论点是否充分|40|med',
+              '完成专八汉译英段落练习，对照答案总结表达差距|30|med'],
+    '四级':  ['精听四级真题Section A短对话10组，跟读纠音|25|high',
+              '完成四级阅读理解2篇，分析每道错题的解题逻辑|40|high',
+              '背四级高频词30个：先看中文说英文，再逆向测试|20|high',
+              '写一篇150词四级议论文，按评分点（结构/语法/词汇）自检|25|med'],
+    '六级':  ['精听六级长对话+短文听力各一套，逐题分析|40|high',
+              '完成六级仔细阅读2篇+摘要题1道并精析|45|high',
+              '六级写作：完成一篇180词作文并检查过渡句与结尾|30|med',
+              '完成中译英翻译练习，重点关注四字成语的转化|25|med'],
+    '雅思':  ['精听雅思Section 3+4填空题，逐句校对答案|40|high',
+              '完成雅思阅读True/False/Not Given一套，分析出错规律|45|high',
+              '雅思写作Task 2：打草稿+检查论据是否具体可量化|40|high',
+              '口语Part 2话题：录音2分钟后回听，记录5个改进点|20|med'],
+    '托福':  ['精听托福Lecture类听力一篇，做笔记后对照原文|35|high',
+              '完成托福阅读一篇，生词造句3个|40|high',
+              '综合写作：阅读3分钟记要点，听力记要点，写250词|45|high',
+              '口语Task 4/6：录音后回听，记录语速/逻辑/词汇各1个问题|25|med'],
+    '考研':  ['英语：精读考研真题阅读一篇，每句翻译并分析难点|50|high',
+              '数学：专项做一章节真题，每道错题写完整解题过程|60|high',
+              '专业课：整理一个核心考点思维导图（定义+公式+例题）|40|high',
+              '政治：刷肖秀荣/腿姐选择题30道，错题标注知识点|25|med'],
+    '高考':  ['语文：完成一篇文言文阅读全套题，逐句对照翻译检查|40|high',
+              '数学：做函数/导数专项例题5道，每题写完整解题步骤|45|high',
+              '英语：完成阅读理解2篇+完形填空1篇，错题整理|35|high',
+              '理综：刷一套电学/力学选择题20道，分析错误原因|30|med'],
+    '期末':  ['梳理本科目大纲，用红笔圈出历年高频考点章节|30|high',
+              '精读重点章节：用自己语言把核心概念写成一页笔记|60|high',
+              '做历年真题一套（限时），完成后对照答案批改|45|high',
+              '专项攻克：挑出3道不会的题，查教材/PPT弄懂写解析|25|med'],
+    '健身':  ['热身：5分钟慢跑+肩绕环20次+髋绕环20次+高抬腿30秒|10|low',
+              '力量：哑铃卧推4组×12次（组间休90秒）+俯身划船3组×10次|25|high',
+              '腿部：深蹲4组×15次+保加利亚分腿蹲3组×10次/腿|25|high',
+              '有氧：快走/跑步机慢跑25分钟，保持心率在130-150区间|25|med',
+              '拉伸：大腿前侧/腘绳肌/胸肌/肩膀各静态拉伸30秒|10|low'],
+    '跑步':  ['热身：5分钟步行，逐步提速至配速+1分钟/公里|5|low',
+              '匀速主体跑：按计划配速完成目标距离（记录每公里配速）|35|high',
+              '最后5分钟降速至慢跑，过渡心率至120以下|5|med',
+              '拉伸：小腿/大腿前侧/髋屈肌各2组×30秒静态拉伸|10|low'],
+    '瑜伽':  ['呼吸冥想：腹式呼吸5分钟，专注感受气息流动|5|low',
+              '热身流：猫牛式×10次循环+下犬式保持5次呼吸×3组|10|med',
+              '力量序列：战士一二三各保持5次呼吸，两侧交替|25|med',
+              '平衡练习：树式左右各1分钟，视线固定一点|15|med',
+              '修复放松：婴儿式3分钟+仰卧扭转各方向2分钟|10|low'],
+    '论文':  ['阅读文献2篇：摘录作者核心论点+研究方法（各不超过5行）|60|high',
+              '细化大纲：补充二级标题、每节核心论点和引用来源|30|high',
+              '撰写正文一节：先写500字初稿（不求完美，先成型）|60|high',
+              '修改已完成章节：检查逻辑衔接、引用格式（APA/MLA）|25|med'],
+    '读书':  ['带问题阅读：先看目录定3个问题，再开始读今日章节|5|low',
+              '专注通读：不中断翻手机，完成今日预定章节（约30-50页）|40|med',
+              '标注复读：二次扫描，用荧光笔标金句+写页边笔记|15|med',
+              '输出总结：用自己的话写今日阅读的3个核心观点+1个行动项|15|high'],
+    '编程':  ['任务拆解：把今日功能写成伪代码/流程图，确认逻辑|20|high',
+              '核心开发：专注实现今日最重要的一个功能模块|60|high',
+              '调试测试：用console.log追踪变量，修复所有报错|30|high',
+              '代码整理：加注释，提取重复代码为函数，改善命名|20|med'],
+    '项目':  ['回顾进度：更新任务清单，标注今日阻塞点和依赖项|15|med',
+              '核心开发/执行：聚焦今日最重要的一个里程碑|90|high',
+              '测试验证：手动测试核心路径，记录Bug到issue列表|30|high',
+              '更新文档：在README或Wiki补充今日新增功能说明|15|low'],
+  };
+  var keys = Object.keys(map);
+  var hit = keys.find(function(k){ return name.indexOf(k) !== -1; });
+  if(hit) return map[hit].join('\n');
+  // generic but still specific
+  return [
+    '列出「'+name+'」所有需要完成的具体步骤，按优先级排序|15|high',
+    '完成「'+name+'」最核心/最难的部分（关掉手机专注执行）|60|high',
+    '完成「'+name+'」第二个重要环节，记录当前进度|40|high',
+    '检查「'+name+'」完成情况，补充遗漏细节|20|med',
+    '整理「'+name+'」产出物并写一段今日复盘笔记|10|low'
+  ].join('\n');
+}
+
+// ─────────────────────────────────────────
+//  PLAN / TIMELINE
+// ─────────────────────────────────────────
+function nowStr(){
+  var n = new Date();
+  return String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0');
+}
+function minsToT(m){ return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
+function tToMins(t){ var p=t.split(':').map(Number); return p[0]*60+p[1]; }
+
+async function runPlan(){
+  var pending = getTasks().filter(function(t){ return !t.done; });
+  if(!pending.length) return;
+  var u = DB[CU]; u.stats = u.stats||{}; u.stats.plans = (u.stats.plans||0)+1; saveDB();
+  var btn = document.getElementById('planBtn');
+  btn.disabled = true; btn.innerHTML = '<div class="spin"></div>规划中…';
+  var pref = uGet('pref') || {};
+  var ns = nowStr();
+  try{
+    var sch;
+    try{ sch = await aiPlan(pending, pref, ns, null); }
+    catch(e){ sch = localPlan(pending, pref, ns); }
+    uSet('schedule', sch);
+    showTimeline(sch);
+    toast('已从 '+ns+' 开始规划');
+  }catch(e){ console.error(e); }
+  btn.disabled = false; btn.innerHTML = '生成时间轴';
+}
+
+async function runReplan(){
+  var pending = getTasks().filter(function(t){ return !t.done; });
+  if(!pending.length){ toast('没有待规划的任务 ✓'); return; }
+  var btn = document.getElementById('replanBtn');
+  btn.style.opacity = '0.5'; btn.style.pointerEvents = 'none';
+  btn.innerHTML = '<div class="spin" style="width:12px;height:12px;flex-shrink:0"></div>规划中…';
+  var pref = uGet('pref') || {};
+  var ns = nowStr();
+  try{
+    var sch;
+    try{ sch = await aiPlan(pending, pref, ns, '用户手动重新规划'); }
+    catch(e){ sch = localPlan(pending, pref, ns); }
+    uSet('schedule', sch);
+    showTimeline(sch);
+    toast('已从 '+ns+' 重新规划 '+pending.length+' 个任务');
+  }catch(e){ toast('规划失败，请重试'); }
+  btn.style.opacity='1'; btn.style.pointerEvents='';
+  btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:13px;height:13px;flex-shrink:0"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>重新规划';
+}
+
+async function doReplan(change){
+  var pending = getTasks().filter(function(t){ return !t.done; });
+  if(!pending.length){ uSet('schedule',null); hideTimeline(); return; }
+  var pref = uGet('pref') || {};
+  var ns = nowStr();
+  try{
+    var sch;
+    try{ sch = await aiPlan(pending, pref, ns, change); }
+    catch(e){ sch = localPlan(pending, pref, ns); }
+    uSet('schedule', sch);
+    showTimeline(sch);
+  }catch(e){}
+}
+
+async function aiPlan(tasks, pref, ns, change){
+  var peaks = {morning:'9-11点为认知高峰', afternoon:'14-16点为认知高峰', night:'20-23点为认知高峰'};
+  var taskStr = tasks.map(function(t){ return '- '+t.name+'（'+( t.dur||30)+'分钟，优先级:'+( t.priority||'med')+'）'; }).join('\n');
+  var prompt = '你是时间管理专家。当前时间:'+ns+'\n'
+    +'偏好:'+( peaks[pref.peak||'morning'])+',午餐:'+(pref.lunch!==false?'12:00-13:00':'无')+',晚餐:'+(pref.dinner!==false?'18:00-19:00':'无')+',结束:'+( pref.end||'22:00')+'\n'
+    +(change?'变化:'+change+'\n':'')
+    +'待完成:\n'+taskStr+'\n'
+    +'要求:从'+ns+'开始,高优先级放高效时段,任务间留5-10分钟缓冲,避开休息时间。\n'
+    +'只返回JSON:{"summary":"规划说明1句","insight":"洞察1句","groups":[{"name":"时段名","items":[{"task":"任务名","start":"HH:MM","end":"HH:MM","duration":分钟,"groupTag":null}]}]}';
+  var raw = await callDS([{role:'user', content:prompt}], 1200);
+  var j = parseJ(raw);
+  if(!j || !j.groups) throw new Error('bad_json');
+  return j;
+}
+
+function localPlan(tasks, pref, ns){
+  var p = ns.split(':').map(Number);
+  var cur = p[0]*60+p[1];
+  var ep = (pref.end||'22:00').split(':').map(Number);
+  var end = ep[0]*60+ep[1];
+  var lunch  = pref.lunch  !== false ? {s:12*60, e:13*60} : null;
+  var dinner = pref.dinner !== false ? {s:18*60, e:19*60} : null;
+  function skip(t){ if(lunch&&t>=lunch.s&&t<lunch.e) return lunch.e; if(dinner&&t>=dinner.s&&t<dinner.e) return dinner.e; return t; }
+  var sorted = tasks.slice().sort(function(a,b){ var o={high:0,med:1,low:2}; return (o[a.priority]||1)-(o[b.priority]||1); });
+  var items = [];
+  cur = skip(cur);
+  sorted.forEach(function(task){
+    var dur = task.dur||30;
+    cur = skip(cur);
+    if(cur+dur > end) return;
+    items.push({task:task.name, start:minsToT(cur), end:minsToT(cur+dur), duration:dur, groupTag:null});
+    cur += dur + 7;
+  });
+  return {summary:'根据当前时间和任务优先级生成规划', insight:'高优先级任务已安排在认知高峰期', groups:[{name:'今日安排', items:items}]};
+}
+
+function showTimeline(sch){
+  document.getElementById('planCardWrap').style.display = 'none';
+  document.getElementById('taskSecWrap').style.display = 'none';
+  var tw = document.getElementById('tlWrap');
+  tw.style.display = '';
+  // summary
+  var sw = document.getElementById('aiSumWrap');
+  sw.innerHTML = (sch.summary ? '<div class="ai-sum fi"><strong>✦ 规划说明</strong><br>'+esc(sch.summary)+'</div>' : '')
+    + (sch.insight ? '<div class="ai-ins fi"><span style="font-size:14px;flex-shrink:0">💡</span><span style="margin-left:6px;font-size:12px">'+esc(sch.insight)+'</span></div>' : '');
+  // render rows
+  var now = new Date(), nm = now.getHours()*60+now.getMinutes();
+  var tasks = getTasks();
+  var html = '';
+  (sch.groups||[]).forEach(function(group){
+    if(!group.items||!group.items.length) return;
+    html += '<div class="tl-glbl">'+esc(group.name)+'</div>';
+    group.items.forEach(function(item, idx, arr){
+      var sm = tToMins(item.start||'00:00');
+      var isDone = tasks.some(function(t){ return t.name===item.task && t.done; });
+      var isNow  = !isDone && sm<=nm && sm+(item.duration||30)>nm;
+      var isLast = idx===arr.length-1;
+      var safeTask = item.task.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      html += '<div class="tl-row">'
+        +'<div class="tl-L"><div class="tl-time">'+(item.start||'')+'</div></div>'
+        +'<div class="tl-M"><div class="tl-dot'+(isDone?' done':isNow?' now':'')+'"></div>'
+          +'<div class="tl-ln"'+(isLast?' style="display:none"':'')+' ></div></div>'
+        +'<div class="tl-R"><div class="tl-card'+(isDone?' done':isNow?' now':'')+'">'
+          +'<div class="tl-ctop">'
+            +'<div class="tl-name">'+esc(item.task)+'</div>'
+            +'<div class="tl-ck'+(isDone?' on':'')+'" onclick="tlCheck(\''+safeTask+'\')">' + chkSVG + '</div>'
+          +'</div>'
+          +'<div class="tl-meta">'
+            +'<span class="tag td">'+item.duration+'分钟</span>'
+            +(isNow ? '<span class="tag" style="background:var(--a3);color:var(--a2)">进行中</span>' : '')
+            +(item.groupTag ? '<div class="tl-gp">'+esc(item.groupTag)+'</div>' : '')
+          +'</div>'
+          +'<div class="tl-te">'
+            +'<span class="te-lbl">开始</span>'
+            +'<input class="te-inp" type="time" value="'+(item.start||'')+'" onchange="tlEditTime(\''+safeTask+'\',\'start\',this.value)">'
+            +'<span class="te-arr">→</span>'
+            +'<span class="te-lbl">结束</span>'
+            +'<input class="te-inp" type="time" value="'+(item.end||'')+'" onchange="tlEditTime(\''+safeTask+'\',\'end\',this.value)">'
+          +'</div>'
+        +'</div></div>'
+        +'</div>';
+    });
+  });
+  document.getElementById('tlContent').innerHTML = '<div class="fi">'+html+'</div>';
+}
+
+function hideTimeline(){
+  document.getElementById('planCardWrap').style.display = '';
+  document.getElementById('taskSecWrap').style.display = '';
+  document.getElementById('tlWrap').style.display = 'none';
+  document.getElementById('aiSumWrap').innerHTML = '';
+}
+
+function tlCheck(taskName){
+  var tasks = getTasks();
+  var t = tasks.find(function(x){ return x.name===taskName; });
+  if(!t) return;
+  t.done = !t.done;
+  if(t.done){
+    var u = DB[CU]; u.stats=u.stats||{};
+    u.stats.done = (u.stats.done||0)+1;
+    u.stats.hours = Math.round(((u.stats.hours||0)+(t.dur||30)/60)*10)/10;
+    saveDB();
+  }
+  saveTasks(tasks);
+  renderTaskList(); renderProgress();
+  doReplan(t.done ? '完成了「'+t.name+'」' : '恢复了「'+t.name+'」');
+}
+
+function tlEditTime(taskName, field, val){
+  var sch = uGet('schedule');
+  if(!sch) return;
+  var found=null, foundGroup=null;
+  (sch.groups||[]).forEach(function(g){
+    g.items.forEach(function(item){
+      if(item.task===taskName){ found=item; foundGroup=g; }
+    });
+  });
+  if(!found) return;
+  if(field==='start'){
+    var diff = tToMins(val) - tToMins(found.start);
+    found.start = val;
+    found.end   = minsToT(tToMins(found.end)+diff);
+    var cascade = false;
+    foundGroup.items.forEach(function(item){
+      if(item===found){ cascade=true; return; }
+      if(cascade){ item.start=minsToT(tToMins(item.start)+diff); item.end=minsToT(tToMins(item.end)+diff); }
+    });
+  } else {
+    found.end = val;
+    found.duration = tToMins(val)-tToMins(found.start);
+  }
+  uSet('schedule', sch);
+  showTimeline(sch);
+  renderProgress();
+}
+
+// ─────────────────────────────────────────
+//  UPCOMING
+// ─────────────────────────────────────────
+function daysUntil(ds){
+  var d = new Date(ds+'T00:00:00');
+  var n = new Date(); n.setHours(0,0,0,0);
+  return Math.ceil((d-n)/86400000);
+}
+
+function renderUpcoming(){
+  var strip = document.getElementById('upWrap');
+  var n = new Date(); n.setHours(0,0,0,0);
+  var evs = (uGet('events')||[])
+    .filter(function(e){ return new Date(e.date+'T00:00:00') >= n; })
+    .sort(function(a,b){ return new Date(a.date)-new Date(b.date); })
+    .slice(0,3);
+  if(!evs.length){ strip.innerHTML=''; return; }
+  var etl = {exam:'考试',deadline:'截止',meeting:'会议',trip:'出行',other:'事件'};
+  strip.innerHTML = evs.map(function(e){
+    var d = daysUntil(e.date);
+    var cls = d<=3?'urg': d<=7?'soon':'';
+    var bcls = d<=3?'ub-r': d<=7?'ub-a':'ub-g';
+    var btxt = d===0?'今天': d===1?'明天': d+'天后';
+    return '<div class="up-item '+cls+'">'
+      +'<div class="up-left"><div class="up-name">'+esc(e.name)+'</div>'
+      +'<div class="up-when">'+(etl[e.type]||'事件')+' · '+e.date+'</div></div>'
+      +'<div class="up-badge '+bcls+'">'+btxt+'</div>'
+      +'</div>';
+  }).join('');
+  // calendar dot
+  var urgent = evs.some(function(e){ return daysUntil(e.date)<=7; });
+  document.getElementById('calDot').style.display = urgent ? '' : 'none';
+}
+
+// ─────────────────────────────────────────
+//  AI SUGGESTIONS
+// ─────────────────────────────────────────
+async function loadAiSug(){
+  var n = new Date(); n.setHours(0,0,0,0);
+  var evs = (uGet('events')||[])
+    .filter(function(e){ return new Date(e.date+'T00:00:00') >= n; })
+    .sort(function(a,b){ return new Date(a.date)-new Date(b.date); })
+    .slice(0,4);
+  var wrap = document.getElementById('sugWrap');
+  if(!evs.length){ wrap.style.display='none'; return; }
+  wrap.style.display='';
+  try{
+    var raw, today = new Date().toISOString().split('T')[0];
+    try{
+      var estr = evs.map(function(e){ return '- '+e.name+'（'+e.date+'，距今'+daysUntil(e.date)+'天）'; }).join('\n');
+      raw = await callDS([
+        {role:'system', content:'根据用户未来事件给出2-3条今天具体可做的建议。只返回JSON:{"intro":"一句说明","items":[{"icon":"表情","text":"具体建议25字内","event":"事件名","addable":true}]}'},
+        {role:'user', content:'今天:'+today+'\n事件:\n'+estr}
+      ], 500);
+    }catch(e){
+      raw = JSON.stringify({intro:'根据近期事件，今天建议做这些准备：',
+        items: evs.slice(0,3).map(function(ev){ return {icon:'📌',text:'为「'+ev.name+'」做准备工作',event:ev.name,addable:true}; })});
+    }
+    var data = parseJ(raw);
+    if(!data){ wrap.style.display='none'; return; }
+    var card = document.getElementById('sugCard');
+    var html = '<strong>✦ '+esc(data.intro||'今日建议')+'</strong>';
+    if(data.items && data.items.length){
+      html += '<div class="sug-items">'+data.items.map(function(it){
+        return '<div class="sug-row">'
+          +'<span class="sug-ico">'+(it.icon||'·')+'</span>'
+          +'<div class="sug-txt">'+esc(it.text)
+            +(it.event?'<span style="color:var(--t3);font-size:11px"> · '+esc(it.event)+'</span>':'')
+          +'</div>'
+          +(it.addable!==false ? '<div class="sug-add" onclick="sugAdd(\''+encodeURIComponent(it.text)+'\')">+ 添加</div>' : '')
+          +'</div>';
+      }).join('')+'</div>';
+    }
+    card.innerHTML = html;
+  }catch(e){ wrap.style.display='none'; }
+}
+
+function sugAdd(enc){
+  addTaskObj({name:decodeURIComponent(enc), dur:30, priority:'med'});
+  toast('已添加到待办');
+}
+
+// ─────────────────────────────────────────
+//  CALENDAR
+// ─────────────────────────────────────────
+// These are plain vars (not let/const) to avoid TDZ issues
+var CAL_Y = new Date().getFullYear();
+var CAL_M = new Date().getMonth();
+var CAL_SEL = new Date().toISOString().split('T')[0];
+
+function calInit(){
+  var n = new Date();
+  CAL_Y = n.getFullYear();
+  CAL_M = n.getMonth();
+  CAL_SEL = n.toISOString().split('T')[0];
+}
+
+function calMove(d){
+  CAL_M += d;
+  if(CAL_M > 11){ CAL_M=0; CAL_Y++; }
+  if(CAL_M < 0 ){ CAL_M=11; CAL_Y--; }
+  renderCalendar();
+}
+
+var evTypeL = {exam:'考试',deadline:'截止',meeting:'会议',trip:'出行',other:'其他'};
+var evColCls = {exam:'ev-exam',deadline:'ev-deadline',meeting:'ev-meeting',trip:'ev-trip',other:'ev-other'};
+
+function renderCalendar(){
+  var months=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  document.getElementById('calTitle').textContent = CAL_Y+'年'+months[CAL_M];
+  var first = new Date(CAL_Y, CAL_M, 1).getDay();
+  var dim   = new Date(CAL_Y, CAL_M+1, 0).getDate();
+  var prev  = new Date(CAL_Y, CAL_M, 0).getDate();
+  var today = new Date().toISOString().split('T')[0];
+  var evDates = new Set((uGet('events')||[]).map(function(e){ return e.date; }));
+  var total = first+dim; while(total%7!==0) total++;
+  var html = '';
+  for(var i=0; i<total; i++){
+    var d, mo=CAL_M, yr=CAL_Y, other=false;
+    if(i<first){ d=prev-(first-i-1); mo=CAL_M-1; if(mo<0){mo=11;yr--;} other=true; }
+    else if(i>=first+dim){ d=i-first-dim+1; mo=CAL_M+1; if(mo>11){mo=0;yr++;} other=true; }
+    else d=i-first+1;
+    var ds = yr+'-'+String(mo+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    var cls = (ds===today?'today ':'')+( ds===CAL_SEL?'sel ':'')+( other?'other ':'')+( evDates.has(ds)?'hasev':'');
+    html += '<div class="cal-day '+cls.trim()+'" onclick="calPickDay(\''+ds+'\')" ><span class="cdn">'+d+'</span></div>';
+  }
+  document.getElementById('calGrid').innerHTML = html;
+  renderCalEvs();
+}
+
+function calPickDay(ds){
+  CAL_SEL = ds;
+  renderCalendar();
+}
+
+function renderCalEvs(){
+  var wrap = document.getElementById('calEvs');
+  var p = CAL_SEL.split('-');
+  var dayEvs = (uGet('events')||[]).filter(function(e){ return e.date===CAL_SEL; });
+  var today = new Date().toISOString().split('T')[0];
+  var html = '<div class="cal-edate">'+parseInt(p[0])+'年'+parseInt(p[1])+'月'+parseInt(p[2])+'日'+(CAL_SEL===today?' · 今天':'')+'</div>';
+  if(dayEvs.length){
+    html += dayEvs.map(function(ev){
+      return '<div class="cal-ev">'
+        +'<div class="ev-bar '+(evColCls[ev.type]||'ev-other')+'"></div>'
+        +'<div class="ev-bd"><div class="ev-nm">'+esc(ev.name)+'</div>'
+        +'<div class="ev-mt">'+(evTypeL[ev.type]||'事件')+(ev.note?' · '+esc(ev.note):'')+' · 距今'+daysUntil(ev.date)+'天</div></div>'
+        +'<button class="ev-del" onclick="delEv('+ev.id+')">'
+          +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>'
+        +'</button></div>';
+    }).join('');
+  } else {
+    html += '<div class="hint" style="padding:18px 0">这天还没有事件</div>';
+  }
+  html += '<button class="cal-add-btn" onclick="openAddEv()">+ 在 '+parseInt(p[1])+'月'+parseInt(p[2])+'日 添加事件</button>';
+  wrap.innerHTML = html;
+}
+
+var evSeq = parseInt(localStorage.getItem('flow_evseq')||'0');
+
+function openAddEv(){
+  var today = new Date().toISOString().split('T')[0];
+  showModal('添加事件', '为 '+CAL_SEL+' 添加事件',
+    '<div class="fld"><label>事件名称</label><input id="evNm" type="text" placeholder="如：专四考试、项目截止..."></div>'
+    +'<div class="fld-row">'
+      +'<div class="fld"><label>类型</label><select id="evTp"><option value="exam">考试/考核</option><option value="deadline">截止日期</option><option value="meeting">会议/约定</option><option value="trip">出行</option><option value="other">其他</option></select></div>'
+      +'<div class="fld"><label>日期</label><input id="evDt" type="date" value="'+CAL_SEL+'" min="'+today+'"></div>'
+    +'</div>'
+    +'<div class="fld"><label>备注（可选）</label><input id="evNt" type="text" placeholder="补充说明..."></div>',
+    '<button class="btn-p" onclick="confirmAddEv()">添加事件</button>'
+  );
+}
+
+async function confirmAddEv(){
+  var nm = document.getElementById('evNm').value.trim();
+  var tp = document.getElementById('evTp').value;
+  var dt = document.getElementById('evDt').value;
+  var nt = document.getElementById('evNt').value.trim();
+  if(!nm||!dt){ toast('请填写名称和日期'); return; }
+  var evs = uGet('events')||[];
+  var ev = {id:++evSeq, name:nm, type:tp, date:dt, note:nt};
+  evs.push(ev); uSet('events', evs);
+  localStorage.setItem('flow_evseq', evSeq);
+  closeModal();
+  CAL_SEL = dt;
+  renderCalendar(); renderUpcoming();
+  await aiRecommEv(ev);
+  loadAiSug();
+}
+
+async function aiRecommEv(ev){
+  var days = daysUntil(ev.date);
+  var recs;
+  try{
+    var raw = await callDS([
+      {role:'system', content:'根据用户未来事件推荐2-3个今天可做的具体准备任务。只返回JSON:{"items":[{"name":"具体任务名","dur":分钟,"priority":"high/med/low"}]}'},
+      {role:'user', content:'事件:'+ev.name+'('+ev.date+','+days+'天后,类型:'+ev.type+',备注:'+(ev.note||'无')+')'}
+    ], 400);
+    recs = parseJ(raw);
+    recs = recs && recs.items ? recs.items : null;
+  }catch(e){
+    recs = [{name:'整理「'+ev.name+'」所需材料清单',dur:20,priority:'high'},
+            {name:'了解「'+ev.name+'」注意事项和流程',dur:15,priority:'med'}];
+  }
+  if(!recs||!recs.length) return;
+  var sel = {}; recs.forEach(function(_,i){ sel[i]=true; });
+  showModal('📋 AI 推荐准备任务', '根据「'+ev.name+'」（'+days+'天后）推荐：',
+    '<div class="stlist">'+recs.map(function(r,i){
+      return '<div class="sti on" id="ri'+i+'" onclick="togRec('+i+')">'
+        +'<div class="sti-cb on" id="rcb'+i+'">' + chkSVG + '</div>'
+        +'<div class="sti-bd"><div class="sti-nm">'+esc(r.name)+'</div>'
+        +'<div class="sti-meta"><span class="tag td">'+r.dur+'分钟</span>'
+        +'<span class="tag '+priCls(r.priority)+'">'+priLabel(r.priority)+'</span></div>'
+        +'</div></div>';
+    }).join('')+'</div>',
+    '<button class="btn-p" onclick="confirmRecs()">添加所选任务</button>'
+    +'<button class="btn-g" style="margin-top:8px" onclick="closeModal()">跳过</button>'
+  );
+  window.togRec = function(i){
+    sel[i]=!sel[i];
+    document.getElementById('ri'+i).classList.toggle('on',sel[i]);
+    document.getElementById('rcb'+i).classList.toggle('on',sel[i]);
+  };
+  window.confirmRecs = function(){
+    recs.forEach(function(r,i){ if(sel[i]) addTaskObj({name:r.name,dur:r.dur,priority:r.priority}); });
+    closeModal(); goTab('home'); toast('已添加推荐任务');
+  };
+}
+
+function delEv(id){
+  uSet('events', (uGet('events')||[]).filter(function(e){ return e.id!==id; }));
+  renderCalEvs(); renderCalendar(); renderUpcoming(); loadAiSug();
+}
+
+// ─────────────────────────────────────────
+//  PROFILE
+// ─────────────────────────────────────────
+function syncProfile(){
+  var u = DB[CU]||{};
+  document.getElementById('pfName').textContent = u.name||'用户';
+  document.getElementById('avatarTxt').textContent = u.name ? u.name[0] : '?';
+  document.getElementById('homeNameEl').textContent = u.name ? u.name+'！' : '准备好了';
+  var pref = u.pref||{};
+  document.getElementById('pStart').value = pref.start||'09:00';
+  document.getElementById('pEnd').value   = pref.end||'22:00';
+  if(!pref.lunch  && pref.lunch  !==undefined) document.getElementById('togL').classList.remove('on');
+  if(!pref.dinner && pref.dinner !==undefined) document.getElementById('togD').classList.remove('on');
+  if(pref.peak) document.querySelectorAll('#peakChips .chip').forEach(function(c){
+    c.classList.toggle('on', c.getAttribute('data-v')===pref.peak);
+  });
+  syncProfileStats();
+}
+
+function syncProfileStats(){
+  var s = ((DB[CU]||{}).stats)||{};
+  document.getElementById('scDone').textContent = s.done||0;
+  document.getElementById('scHrs').textContent  = (s.hours||0)+'h';
+  document.getElementById('scStr').textContent  = s.streak||1;
+  document.getElementById('scPlan').textContent = s.plans||0;
+}
+
+function editName(){
+  var el = document.getElementById('pfName');
+  var inp = document.createElement('input');
+  inp.className='pf-nm-inp'; inp.value=(DB[CU]||{}).name||''; inp.placeholder='你的名字';
+  el.replaceWith(inp); inp.focus();
+  function done(){
+    var v = inp.value.trim();
+    if(v){ DB[CU].name=v; saveDB(); }
+    inp.replaceWith(el);
+    el.textContent = (DB[CU]||{}).name||'用户';
+    document.getElementById('avatarTxt').textContent = (DB[CU]||{}).name ? DB[CU].name[0] : '?';
+    document.getElementById('homeNameEl').textContent = (DB[CU]||{}).name ? DB[CU].name+'！' : '准备好了';
+    tickClock();
+  }
+  inp.onblur = done;
+  inp.onkeydown = function(e){ if(e.key==='Enter') inp.blur(); };
+}
+
+function savePref(){
+  uSet('pref', {
+    start:  document.getElementById('pStart').value,
+    end:    document.getElementById('pEnd').value,
+    lunch:  document.getElementById('togL').classList.contains('on'),
+    dinner: document.getElementById('togD').classList.contains('on'),
+    peak:   ((DB[CU]||{}).pref||{}).peak||'morning'
+  });
+}
+
+function selChip(el, group){
+  document.querySelectorAll('#peakChips .chip').forEach(function(c){ c.classList.remove('on'); });
+  el.classList.add('on');
+  var p = (DB[CU]||{}).pref||{}; p.peak=el.getAttribute('data-v'); uSet('pref',p);
+}
+
+// ─────────────────────────────────────────
+//  MODAL
+// ─────────────────────────────────────────
+function showModal(ttl, sub, body, foot){
+  document.getElementById('modalTtl').textContent = ttl;
+  document.getElementById('modalSub').innerHTML = sub||'';
+  document.getElementById('modalBd').innerHTML  = body||'';
+  document.getElementById('modalFt').innerHTML  = foot||'';
+  document.getElementById('modalBg').classList.add('on');
+}
+function closeModal(){ document.getElementById('modalBg').classList.remove('on'); }
+
+// ─────────────────────────────────────────
+//  UTILS
+// ─────────────────────────────────────────
+function esc(s){
+  if(s===null||s===undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+var toastTm;
+function toast(msg){
+  var el = document.getElementById('toastEl');
+  if(!el){
+    el = document.createElement('div'); el.id='toastEl';
+    el.style.cssText='position:fixed;bottom:82px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--line2);color:var(--t1);padding:8px 18px;border-radius:20px;font-size:13px;z-index:300;font-family:var(--fc);white-space:nowrap;transition:opacity .2s;pointer-events:none';
+    document.body.appendChild(el);
+  }
+  el.textContent=msg; el.style.opacity='1';
+  clearTimeout(toastTm);
+  toastTm=setTimeout(function(){ el.style.opacity='0'; }, 2200);
+}
+
+document.addEventListener('keydown', function(e){ if(e.key==='Escape'){ closeModal(); } });
+</script>
+</body>
+</html>
